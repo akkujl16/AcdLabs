@@ -7,13 +7,13 @@ bool correctChainOfBrackets(const std::string& str) {
     std::stack<char> stackOpenBrackets;
 
     for (char ch : str) {
-        // Если скобка открывающаяся, то кладем её в стек
+        // Если скобка открывающаяся, то перенос её в стек
         if (ch == '(' || ch == '{' || ch == '[') {
             stackOpenBrackets.push(ch);
         }
-        // Если скобка закрывающаяся, проверяем стек
+        // Если скобка закрывающаяся, проверка стека
         else if (ch == ')' || ch == '}' || ch == ']') {
-            // Если стек пуст, значит для закрывающей скобки нет открывающей
+            // Если стек пуст, для закрывающей скобки нет открывающей
             if (stackOpenBrackets.empty()) {
                 return false;
             }
@@ -23,16 +23,16 @@ bool correctChainOfBrackets(const std::string& str) {
             if ((ch == ')' && top == '(') ||
                 (ch == '}' && top == '{') ||
                 (ch == ']' && top == '[')) {
-                stackOpenBrackets.pop(); // Соответствие найдено, убирание из стека
+                stackOpenBrackets.pop(); // Соответствие найдено, удаление из стека
             }
             else {
                 return false; // Типы скобок не совпали
             }
         }
-        // Игнорирование другич символов
+        // Игнорирование других символов
     }
 
-    // Если стек пустой, значит все скобки закрылись правильно
+    // Если стек пустой, все скобки закрылись правильно
     return stackOpenBrackets.empty();
 }
 
