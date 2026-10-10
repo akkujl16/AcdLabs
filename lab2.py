@@ -1,60 +1,87 @@
-import re
+class SimpleCalculator:
+    def __init__(self, expr):
+        self.expr = expr.replace(" ", "").rstrip("=") # удаление пробелов и знака '=' с конца
+        self.pos = 0 # индекс обрабатываемого символа
+        self.check_brackets() # метод проверки скобок
 
-def calculate_expression(expr: str):
-    # Проверка на наличие знака "=" строго в конце
-    expr = expr.strip()
-    if not expr.endswith('='):
-        return "Ошибка: выражение должно заканчиваться знаком '='"
-    
-    # Удаление '=' для дальнейшего вычисления
-    base_expr = expr[:-1].replace(" ", "")
-    if not base_expr:
-        return "Ошибка: пустое выражение"
+    def check_brackets(self):
+        balance = 0
+        for char in self.expr:
+            if char == '(': balance += 1
+            elif char == ')': balance -= 1
+            if balance < 0:
+                raise ValueError("Ошибка: Лишняя закрывающая скобка")
+        if balance != 0:
+            raise ValueError("Ошибка: Не все скобки закрыты")
 
-    # Проверка на недопустимые символы
-    # Разрешены только цифры, точки, знаки +, -, *, /, ( и )
-    if not re.match(r'^[0-9.+\-*/()]+$', base_expr):
-        return "Ошибка: выражение содержит недопустимые символы"
+    def eval(self): # разбор текста
+        result = self.eval_expression()
+        if self.pos < len(self.expr): # проверка дошел ли курсор до конца т.е отработали ли все функции
+            raise ValueError(f"Ошибка: Некорректный символ '{self.expr[self.pos]}'") # индекс курсора в строке
+        return result
 
-    # Проверка синтаксиса (подряд идущие операторы, знаки в конце и т.д.)
-    # Например: ++, *-, /+, оператор перед закрывающей скобкой или в конце строки
-    if re.search(r'[+\-*/]{2,}', base_expr):
-        return "Ошибка: два оператора не могут идти подряд"
-    if re.search(r'[+\-*/]$', base_expr):
-        return "Ошибка: выражение не может заканчиваться оператором"
-    if re.search(r'\([+\*/]', base_expr):  # (-5 разрешен, а (+5 или (*5 нет
-        return "Ошибка: некорректный оператор после открывающей скобки"
-    if re.search(r'[+\-*/]\)', base_expr):
-        return "Ошибка: оператор перед закрывающей скобкой"
-    if re.search(r'\(\)', base_expr):
-        return "Ошибка: пустые скобки"
+    def eval_expression(self): # обработка +-
+        a = self.eval_term()
+        while self.pos < len(self.expr) and self.expr[self.pos] in ('+', '-'):
+            oper = self.expr[self.pos]
+            self.pos += 1
+            b = self.eval_term()
+            a = a + b if oper == '+' else a - b
+        return a
 
-    # Проверка баланса скобок
-    bracket_balance = 0
-    for char in base_expr:
-        if char == '(':
-            bracket_balance += 1
-        elif char == ')':
-            bracket_balance -= 1
-        if bracket_balance < 0:
-            return "Ошибка: нарушен баланс скобок (лишняя закрывающая скобка)"
-    
-    if bracket_balance != 0:
-        return "Ошибка: не все открытые скобки закрыты"
+    def eval_term(self): # обработка *:
+        a = self.eval_factor()
+        while self.pos < len(self.expr) and self.expr[self.pos] in ('*', '/'):
+            oper = self.expr[self.pos]
+            self.pos += 1
+            b = self.eval_factor()
+            if oper == '*':
+                a *= b
+            else:
+                if abs(b) < 0.000000001:
+                    raise ZeroDivisionError("Ошибка: Деление на ноль")
+                a /= b
+        return a
 
-    # Проверка на деление на ноль
-    # Поиск символа '/' после которого идет ноль, не являющийся частью другого числа
-    if re.search(r'\/0+(?!\.\d*[1-9])(?!\d)', base_expr):
-        return "Ошибка: деление на ноль"
+    def eval_factor(self): # обработка чисел, скобок, унарного минуса и плюса
+        if self.pos >= len(self.expr):
+            raise ValueError("Ошибка: Неполное выражение")
 
-    # Вычисление результата с перехватом непредвиденных ошибок деления
-    try:
-        result = eval(base_expr)
-        return f"Результат: {result}"
-    except ZeroDivisionError:
-        return "Ошибка: деление на ноль во время вычислений"
-    except Exception as e:
-        return f"Ошибка при вычислении выражения"
+        # унарный минус
+        if self.expr[self.pos] == '-':
+            self.pos += 1
+            return -self.eval_factor()
+        
+        # унарный плюс
+        if self.expr[self.pos] == '+':
+            self.pos += 1
+            return self.eval_factor()
 
-user_input = input("Введите математическое выражение (например, 2+7*(3/9)-5=): ")
-print(calculate_expression(user_input))
+        # выражение в скобках
+        if self.expr[self.pos] == '(':
+            self.pos += 1  
+            result = self.eval_expression()
+            if self.pos >= len(self.expr) or self.expr[self.pos] != ')':
+                raise ValueError("Ошибка: Нет закрывающийся скобки")
+            self.pos += 1 
+            return result
+
+        # считывание числа
+        start = self.pos # начало блока
+        while self.pos < len(self.expr) and (self.expr[self.pos].isdigit() or self.expr[self.pos] == '.'):
+            self.pos += 1
+        piece = self.expr[start:self.pos] # создание блока от начала до индекса который не число
+        if not piece:
+            raise ValueError(f"Ошибка: Нет числа в позиции {start}")       
+        try:
+            return float(piece)
+        except ValueError:
+            raise ValueError(f"Ошибка: Неверный формат числа '{piece}'")
+
+text = input("Введите выражение (2+7*(3/9)-5=): ")
+try:
+    calc = SimpleCalculator(text)
+    res = calc.eval()
+    print("Результат:", int(res) if res.is_integer() else res)
+except (ValueError, ZeroDivisionError) as e:
+    print(e)
